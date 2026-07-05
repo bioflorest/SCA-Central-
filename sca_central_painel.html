@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin — Licenças SCA (Central)</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde:#00c97a; --amarelo:#f5a623; --vermelho:#e63946;
+    --fundo:#0a0a0a; --card:#141414; --card2:#1c1c1c; --borda:#272727;
+    --texto:#e4e4e4; --muted:#5a5a5a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sora',sans-serif; background:var(--fundo); color:var(--texto); min-height:100vh; }
+  .auth-screen { position:fixed; inset:0; background:#050f08; display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .auth-card { background:rgba(255,255,255,.04); border:1px solid rgba(0,201,122,.15); border-radius:20px; padding:2.8rem 2.2rem; width:100%; max-width:420px; }
+  .auth-logo { font-family:'Space Mono',monospace; font-size:1.6rem; font-weight:700; color:var(--verde); letter-spacing:3px; margin-bottom:.25rem; }
+  .auth-sub { font-size:.85rem; color:rgba(255,255,255,.3); margin-bottom:2rem; }
+  .auth-label { font-size:.78rem; color:rgba(255,255,255,.4); margin:1rem 0 .4rem; }
+  .auth-input { width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(0,201,122,.2); border-radius:9px; padding:.75rem 1rem; color:#fff; font-family:'Sora',sans-serif; font-size:.9rem; outline:none; transition:border-color .2s; }
+  .auth-input:focus { border-color:var(--verde); }
+  .auth-btn { width:100%; margin-top:1.4rem; padding:.8rem; background:linear-gradient(135deg,#1a6e3f,var(--verde)); border:none; border-radius:10px; font-family:'Space Mono',monospace; font-size:.9rem; font-weight:700; color:#051810; cursor:pointer; letter-spacing:1px; }
+  .auth-btn.ghost { background:var(--card2); color:var(--texto); border:1px solid var(--borda); margin-top:.7rem; }
+  .auth-err { margin-top:.9rem; padding:.6rem 1rem; border-radius:8px; background:rgba(230,57,70,.15); border:1px solid rgba(230,57,70,.3); color:#ff6b74; font-size:.78rem; display:none; }
+  .auth-hint { margin-top:1rem; font-size:.72rem; color:rgba(255,255,255,.25); }
+  .header { background:var(--card); border-bottom:1px solid var(--borda); padding:1rem 1.3rem; display:flex; justify-content:space-between; align-items:center; }
+  .header-logo { font-family:'Space Mono',monospace; font-weight:700; color:var(--verde); letter-spacing:2px; }
+  .header-right { display:flex; gap:.6rem; align-items:center; }
+  .header-email { font-family:'Space Mono',monospace; font-size:.72rem; color:var(--muted); }
+  .btn-logout { padding:.4rem .9rem; border-radius:6px; background:rgba(230,57,70,.15); border:1px solid rgba(230,57,70,.3); color:#ff6b74; font-size:.75rem; cursor:pointer; }
+  .btn-empresas { padding:.4rem .9rem; border-radius:6px; background:var(--card2); border:1px solid var(--borda); color:var(--texto); font-size:.75rem; cursor:pointer; }
+  .wrap { padding:1.3rem; max-width:1100px; margin:0 auto; }
+  .stats { display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .stat { flex:1; min-width:120px; background:var(--card); border:1px solid var(--borda); border-radius:12px; padding:1.2rem; }
+  .stat .num { font-size:2rem; font-weight:700; font-family:'Space Mono',monospace; }
+  .stat .desc { font-size:.78rem; color:var(--muted); margin-top:.2rem; }
+  .stat.verde .num{color:var(--verde)} .stat.amarelo .num{color:var(--amarelo)} .stat.vermelho .num{color:var(--vermelho)}
+  .sec-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .sec-head h2 { font-size:1rem; }
+  .btn-primary { padding:.6rem 1.2rem; background:var(--verde); color:#000; border:none; border-radius:8px; font-weight:700; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  thead tr { background:var(--card2); border-bottom:1px solid var(--borda); }
+  thead th { text-align:left; padding:.7rem 1rem; font-size:.72rem; letter-spacing:.08em; color:var(--muted); font-weight:600; text-transform:uppercase; }
+  tbody tr { border-bottom:1px solid var(--borda); }
+  tbody tr:hover { background:var(--card2); }
+  tbody td { padding:.85rem 1rem; vertical-align:middle; }
+  .badge-status { display:inline-block; padding:.25rem .75rem; border-radius:999px; font-size:.7rem; font-family:'Space Mono',monospace; text-transform:uppercase; }
+  .badge-status.verde{background:rgba(0,201,122,.15);color:var(--verde)}
+  .badge-status.amarelo{background:rgba(245,166,35,.15);color:var(--amarelo)}
+  .badge-status.vermelho{background:rgba(230,57,70,.15);color:var(--vermelho)}
+  .badge-status.vencido{background:rgba(100,100,100,.15);color:#777}
+  .emp-tag { display:inline-block; padding:.2rem .6rem; border-radius:4px; font-size:.72rem; font-weight:600; background:var(--card2); border:1px solid rgba(0,201,122,.3); color:var(--verde); }
+  .chave-mono { font-family:'Space Mono',monospace; font-size:.75rem; color:#aaa; }
+  .acoes { display:flex; gap:.5rem; }
+  .btn-acao { padding:.35rem .75rem; border-radius:6px; border:1px solid var(--borda); background:var(--card2); color:var(--texto); font-size:.75rem; cursor:pointer; }
+  .btn-acao:hover { background:#2a2a2a; }
+  .btn-acao.danger { border-color:rgba(230,57,70,.4); color:var(--vermelho); }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:50; padding:1rem; }
+  .overlay.open { display:flex; }
+  .modal-box { background:var(--card); border:1px solid var(--borda); border-radius:16px; padding:2rem; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; }
+  .modal-box h3 { font-size:1rem; margin-bottom:1.4rem; }
+  .modal-box label { display:block; font-size:.78rem; color:var(--muted); margin-bottom:.3rem; margin-top:.8rem; }
+  .modal-box input { width:100%; background:var(--card2); border:1px solid var(--borda); border-radius:8px; padding:.65rem 1rem; color:var(--texto); font-size:.85rem; outline:none; font-family:'Sora',sans-serif; }
+  .modal-btns { display:flex; gap:.8rem; margin-top:1.5rem; }
+  .modal-btns button { flex:1; padding:.75rem; border-radius:8px; border:none; cursor:pointer; font-size:.9rem; font-weight:600; }
+  .b-salvar { background:var(--verde); color:#000; }
+  .b-cancelar { background:var(--card2); color:var(--texto); border:1px solid var(--borda); }
+  .msg-erro { margin-top:.8rem; font-size:.8rem; color:var(--vermelho); display:none; }
+  .empresa-item { display:flex; justify-content:space-between; align-items:center; border:1px solid var(--borda); border-radius:8px; padding:.6rem .9rem; margin-bottom:.5rem; }
+  .empty { text-align:center; padding:3rem 2rem; color:var(--muted); font-size:.9rem; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="tela-login" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">SCA</div>
+    <div class="auth-sub">Painel Central de Licenças</div>
+    <div class="auth-label">E-mail</div>
+    <input class="auth-input" id="login-email" type="email" placeholder="admin@central.com.br"/>
+    <div class="auth-label">Senha</div>
+    <input class="auth-input" id="login-senha" type="password" placeholder="••••••••"/>
+    <button class="auth-btn" id="btn-login">ENTRAR</button>
+    <div class="auth-err" id="login-err">E-mail ou senha inválidos.</div>
+    <div class="auth-hint" id="cfg-hint"></div>
+  </div>
+</div>
+
+<div id="tela-mestra" class="auth-screen hidden">
+  <div class="auth-card">
+    <div class="auth-logo">🔑</div>
+    <div class="auth-sub">Senha mestra — descriptografa os dados das empresas</div>
+    <div class="auth-label">Senha mestra</div>
+    <input class="auth-input" id="mestra-input" type="password" placeholder="••••••••"/>
+    <button class="auth-btn" id="btn-mestra">DESTRAVAR</button>
+    <button class="auth-btn ghost" id="btn-sair-mestra">Sair</button>
+    <div class="auth-err" id="mestra-err">Não foi possível descriptografar com essa senha.</div>
+    <div class="auth-hint">Não é salva em lugar nenhum e não tem recuperação.</div>
+  </div>
+</div>
+
+<div id="tela-painel" class="hidden">
+  <div class="header">
+    <div class="header-logo">SCA · LICENÇAS</div>
+    <div class="header-right">
+      <span class="header-email" id="hdr-email"></span>
+      <button class="btn-empresas" id="btn-empresas">🏢 Empresas</button>
+      <button class="btn-logout" id="btn-logout">Sair</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><div class="num" id="st-total">0</div><div class="desc">Total de licenças</div></div>
+      <div class="stat verde"><div class="num" id="st-verde">0</div><div class="desc">Ativas</div></div>
+      <div class="stat amarelo"><div class="num" id="st-amarelo">0</div><div class="desc">Vencendo</div></div>
+      <div class="stat vermelho"><div class="num" id="st-vermelho">0</div><div class="desc">Vencidas</div></div>
+    </div>
+    <div class="sec-head">
+      <h2>Licenças — Todas as Empresas</h2>
+      <button class="btn-primary" id="btn-recarregar">↻ Recarregar</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Empresa</th><th>Cliente</th><th>E-mail</th><th>Chave</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="empty" class="empty hidden">Nenhuma licença encontrada. Cadastre empresas primeiro.</div>
+  </div>
+</div>
+
+<div id="ov-empresas" class="overlay">
+  <div class="modal-box">
+    <h3>🏢 Empresas cadastradas</h3>
+    <div id="emp-lista"></div>
+    <h3 style="margin-top:1.5rem">Adicionar empresa</h3>
+    <label>Nome da empresa</label><input id="emp-nome" placeholder="Ex: Empresa 01"/>
+    <label>URL do Supabase</label><input id="emp-url" placeholder="https://xxxx.supabase.co"/>
+    <label>Chave anon</label><input id="emp-anon" placeholder="eyJhbGci..."/>
+    <label>Login (e-mail admin do projeto)</label><input id="emp-login" placeholder="admin@empresa.com"/>
+    <label>Senha do admin do projeto</label><input id="emp-senha" type="password" placeholder="••••••••"/>
+    <div class="modal-btns">
+      <button class="b-salvar" id="emp-salvar">Salvar empresa</button>
+      <button class="b-cancelar" id="emp-fechar">Fechar</button>
+    </div>
+    <div class="msg-erro" id="emp-err"></div>
+  </div>
+</div>
+
+<div id="ov-lic" class="overlay">
+  <div class="modal-box">
+    <h3 id="lic-tit">Renovar licença</h3>
+    <label>Cliente</label><input id="l-cliente"/>
+    <label>E-mail</label><input id="l-email"/>
+    <label>Vencimento</label><input id="l-venc" type="date"/>
+    <label>Chave</label><input id="l-chave"/>
+    <div class="modal-btns">
+      <button class="b-salvar" id="l-salvar">Salvar</button>
+      <button class="b-cancelar" id="l-fechar">Cancelar</button>
+    </div>
+    <div class="msg-erro" id="l-err"></div>
+  </div>
+</div>
+
+<script>
+const CENTRAL_URL  = 'https://dsczdysuxsqgyivqyatj.supabase.co';
+const CENTRAL_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzY3pkeXN1eHNxZ3lpdnF5YXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjQzNDAsImV4cCI6MjA5ODg0MDM0MH0.DL99xGg6bsm-VAfdHgmqbNDYd9iGBwHpW79WsEP2DQ0';
+
+const DIAS_AMARELO = 30, DIAS_VERMELHO = 7;
+let supaCentral, masterKey, empresas = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  supaCentral = window.supabase.createClient(CENTRAL_URL, CENTRAL_ANON);
+});
+
+async function derivarChave(senha, saltB64) {
+  const enc = new TextEncoder();
+  const salt = saltB64 ? b64ToBuf(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, baseKey, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  return { key, salt: bufToB64(salt) };
+}
+async function criptografar(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, masterKey.key, new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({ s: masterKey.salt, iv: bufToB64(iv), ct: bufToB64(ct) });
+}
+async function descriptografar(str) {
+  const { iv, ct } = JSON.parse(str);
+  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64ToBuf(iv) }, masterKey.key, b64ToBuf(ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function bufToB64(b){ return btoa(String.fromCharCode(...new Uint8Array(b))); }
+function b64ToBuf(s){ return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const err = document.getElementById('login-err'); err.style.display='none';
+  const { data, error } = await supaCentral.auth.signInWithPassword({ email, password: senha });
+  if (error) { err.style.display='block'; return; }
+  document.getElementById('hdr-email').textContent = email;
+  mostrar('tela-mestra');
+});
+
+document.getElementById('btn-mestra').addEventListener('click', async () => {
+  const senha = document.getElementById('mestra-input').value;
+  const err = document.getElementById('mestra-err'); err.style.display='none';
+  if (!senha) return;
+  const { data } = await supaCentral.from('empresas').select('*').order('criado_em');
+  empresas = data || [];
+  if (empresas.length) {
+    try { const p = JSON.parse(empresas[0].dados_cripto); masterKey = await derivarChave(senha, p.s); await descriptografar(empresas[0].dados_cripto); }
+    catch { err.style.display='block'; masterKey=null; return; }
+  } else { masterKey = await derivarChave(senha, null); }
+  mostrar('tela-painel'); carregarTodasLicencas();
+});
+
+document.getElementById('btn-empresas').addEventListener('click', ()=>{ renderEmpresas(); abrir('ov-empresas'); });
+document.getElementById('emp-fechar').addEventListener('click', ()=>fechar('ov-empresas'));
+function renderEmpresas(){
+  const box = document.getElementById('emp-lista');
+  box.innerHTML = empresas.length ? '' : '<p style="color:var(--muted);font-size:.85rem">Nenhuma empresa cadastrada.</p>';
+  empresas.forEach(e=>{
+    const d=document.createElement('div'); d.className='empresa-item';
+    d.innerHTML=`<span>${esc(e.nome)}</span>`;
+    const del=document.createElement('button'); del.className='btn-acao danger'; del.textContent='Excluir';
+    del.onclick=async()=>{ if(!confirm('Excluir '+e.nome+'?'))return; await supaCentral.from('empresas').delete().eq('id',e.id); empresas=empresas.filter(x=>x.id!==e.id); renderEmpresas(); carregarTodasLicencas(); };
+    d.appendChild(del); box.appendChild(d);
+  });
+}
+document.getElementById('emp-salvar').addEventListener('click', async ()=>{
+  const nome=v('emp-nome'),url=v('emp-url'),anon=v('emp-anon'),login=v('emp-login'),senha=document.getElementById('emp-senha').value;
+  const err=document.getElementById('emp-err'); err.style.display='none';
+  if(!nome||!url||!anon||!login||!senha){ err.textContent='Preencha todos os campos.'; err.style.display='block'; return; }
+  try{
+    const dados_cripto=await criptografar({url,anon,login,senha});
+    const {data,error}=await supaCentral.from('empresas').insert({nome,dados_cripto}).select().single();
+    if(error)throw error;
+    empresas.push(data);
+    ['emp-nome','emp-url','emp-anon','emp-login','emp-senha'].forEach(id=>document.getElementById(id).value='');
+    renderEmpresas(); carregarTodasLicencas();
+  }catch(e){ err.textContent='Erro: '+(e.message||e); err.style.display='block'; }
+});
+
+async function carregarTodasLicencas(){
+  const tbody=document.getElementById('tbody'), empty=document.getElementById('empty');
+  tbody.innerHTML='<tr><td colspan="7" style="color:var(--muted);padding:2rem;text-align:center">Carregando...</td></tr>'; empty.classList.add('hidden');
+  let todas=[];
+  for(const emp of empresas){
+    let cfg; try{ cfg=await descriptografar(emp.dados_cripto); }catch{ continue; }
+    try{
+      const cli=window.supabase.createClient(cfg.url,cfg.anon);
+      await cli.auth.signInWithPassword({email:cfg.login,password:cfg.senha});
+      const {data,error}=await cli.from('licencas').select('*').order('vencimento',{ascending:true});
+      if(!error&&data) data.forEach(l=>todas.push({...l,_empresa:emp.nome,_cfg:cfg}));
+    }catch(e){}
+  }
+  let nv=0,na=0,nx=0;
+  todas.forEach(l=>{ const {status}=calcStatus(l.vencimento); if(status==='verde')nv++; else if(status==='amarelo'||status==='vermelho')na++; else if(status==='vencido')nx++; });
+  document.getElementById('st-total').textContent=todas.length;
+  document.getElementById('st-verde').textContent=nv;
+  document.getElementById('st-amarelo').textContent=na;
+  document.getElementById('st-vermelho').textContent=nx;
+
+  if(!todas.length){ tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
+  tbody.innerHTML='';
+  todas.forEach(lic=>{
+    const {status}=calcStatus(lic.vencimento);
+    const venc=new Date(lic.vencimento+'T00:00:00').toLocaleDateString('pt-BR');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="emp-tag">${esc(lic._empresa)}</span></td>
+      <td>${esc(lic.cliente||'—')}</td>
+      <td>${esc(lic.email||'')}</td>
+      <td><span class="chave-mono">${esc(lic.chave||'')}</span></td>
+      <td>${venc}</td>
+      <td><span class="badge-status ${status}">${status}</span></td>`;
+    const td=document.createElement('td'); td.className='acoes';
+    const bR=document.createElement('button'); bR.className='btn-acao'; bR.textContent='Renovar'; bR.onclick=()=>abrirLic(lic);
+    const bE=document.createElement('button'); bE.className='btn-acao danger'; bE.textContent='Excluir';
+    bE.onclick=async()=>{ if(!confirm('Excluir licença de '+lic.cliente+'?'))return; const cli=window.supabase.createClient(lic._cfg.url,lic._cfg.anon); await cli.auth.signInWithPassword({email:lic._cfg.login,password:lic._cfg.senha}); await cli.from('licencas').delete().eq('id',lic.id); carregarTodasLicencas(); };
+    td.appendChild(bR); td.appendChild(bE); tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+}
+
+let licAtual=null;
+function abrirLic(lic){
+  licAtual=lic;
+  document.getElementById('l-cliente').value=lic.cliente||'';
+  document.getElementById('l-email').value=lic.email||'';
+  document.getElementById('l-venc').value=lic.vencimento||'';
+  document.getElementById('l-chave').value=lic.chave||'';
+  document.getElementById('l-err').style.display='none';
+  abrir('ov-lic');
+}
+document.getElementById('l-fechar').addEventListener('click',()=>fechar('ov-lic'));
+document.getElementById('l-salvar').addEventListener('click',async()=>{
+  const err=document.getElementById('l-err'); err.style.display='none';
+  const payload={cliente:v('l-cliente'),email:v('l-email').toLowerCase(),vencimento:document.getElementById('l-venc').value,chave:v('l-chave'),ativo:true};
+  if(!payload.cliente||!payload.vencimento){ err.textContent='Cliente e vencimento são obrigatórios.'; err.style.display='block'; return; }
+  try{
+    const cli=window.supabase.createClient(licAtual._cfg.url,licAtual._cfg.anon);
+    await cli.auth.signInWithPassword({email:licAtual._cfg.login,password:licAtual._cfg.senha});
+    const {error}=await cli.from('licencas').update(payload).eq('id',licAtual.id);
+    if(error)throw error;
+    fechar('ov-lic'); carregarTodasLicencas();
+  }catch(e){ err.textContent='Erro: '+(e.message||e); err.style.display='block'; }
+});
+
+document.getElementById('btn-recarregar').addEventListener('click',carregarTodasLicencas);
+document.getElementById('btn-logout').addEventListener('click',sair);
+document.getElementById('btn-sair-mestra').addEventListener('click',sair);
+function sair(){ masterKey=null; empresas=[]; supaCentral.auth.signOut(); mostrar('tela-login'); }
+
+function mostrar(id){ ['tela-login','tela-mestra','tela-painel'].forEach(t=>document.getElementById(t).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+function abrir(id){ document.getElementById(id).classList.add('open'); }
+function fechar(id){ document.getElementById(id).classList.remove('open'); }
+function v(id){ return document.getElementById(id).value.trim(); }
+function calcStatus(vc){ const h=new Date(); h.setHours(0,0,0,0); const d=Math.ceil((new Date(vc+'T00:00:00')-h)/86400000); let s; if(d<=0)s='vencido'; else if(d<=DIAS_VERMELHO)s='vermelho'; else if(d<=DIAS_AMARELO)s='amarelo'; else s='verde'; return {dias:d,status:s}; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
