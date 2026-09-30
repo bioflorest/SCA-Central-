@@ -7,12 +7,13 @@ on:
 
 jobs:
   ping:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Ping Supabase
+      - name: Ping SCA Central
         env:
           SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzY3pkeXN1eHNxZ3lpdnF5YXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjQzNDAsImV4cCI6MjA5ODg0MDM0MH0.DL99xGg6bsm-VAfdHgmqbNDYd9iGBwHpW79WsEP2DQ0
         run: |
-          curl -s -o /dev/null \
+          curl -fsS -o /dev/null \
             -H "apikey: $SUPABASE_KEY" \
-            https://dsczdysuxsqgyivqyatj.supabase.co/rest/v1/
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "https://dsczdysuxsqgyivqyatj.supabase.co/rest/v1/empresas?select=*&limit=1"
